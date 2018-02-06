@@ -140,8 +140,9 @@ function redrawCanvas() {
     const currentData = getCurrentTabData();
     if (!currentData) return;
     const canvas = state.canvasElement;
-    const gr = canvas.getContext("2d");
-    gr.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    ctx.lineWidth = .5;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     const x0 = y0 = 30;
     const width = canvas.width - 80;
     const height = canvas.height - 90;
@@ -168,28 +169,29 @@ function redrawCanvas() {
         stepX = initialStepX * stepXiterator;
     }
 
-    gr.beginPath();
+    ctx.beginPath();  ctx.translate(0, 0);
     //вертикальная ось
-    gr.moveTo(x0, y0);
-    gr.lineTo(x0, height + y0);
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x0, height + y0);
     //горизонтальная ось
-    gr.lineTo(periodLength * initialStepX + x0 + 1, height + y0);
+    ctx.lineTo(periodLength * initialStepX + x0 + 1, height + y0);
 
     //разметка по годам
     for (let i = x0, period = periodFrom; period <= axesPeriodTo; i += stepX, period += stepXiterator) {
-        gr.moveTo(i, height + y0);
-        gr.lineTo(i, height + y0 + 15);
-        gr.fillText(period, i + 3, height + y0 + 15);
+        ctx.moveTo(i, height + y0);
+        ctx.lineTo(i, height + y0 + 15);
+        ctx.fillText(period, i + 3, height + y0 + 15);
     }
-    gr.strokeStyle = '#000';
-    gr.lineWidth = 2;
-    gr.closePath();
-    gr.stroke();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.closePath();
+    ctx.stroke();
 
 
     // отрисовка графика
-    const monthStep = (initialStepX / 12);
-    gr.beginPath();
+    const monthStep = (initialStepX / 12); ctx.translate(0.5, 0.5);
+    ctx.beginPath();
+
     for (let year = periodFrom, yearIndex = 0; year < axesPeriodTo; year++, yearIndex++) {
         if (!currentData[year]) return;
         const months = currentData[year].months;
@@ -199,20 +201,21 @@ function redrawCanvas() {
             const y = maxValueY + (maxValue - value) * valueMapK;
 
             if (!yearIndex && !i)
-                gr.moveTo(x, y);
+                ctx.moveTo(x, y);
             else
-                gr.lineTo(x, y);
-          //  gr.arc(x, y, 2, 0, 2 * Math.PI, false);
+                ctx.lineTo(x, y);
+          //  ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
             if (value === minValue || value === maxValue)
-                gr.fillText(value, x0 - 25, y);
+                ctx.fillText(value, x0 - 30, y);
 
         });
 
 
-        gr.strokeStyle = "#ff6129";
-        gr.lineWidth = 1;
-        gr.stroke();
+        ctx.strokeStyle = "#ff6129";
+        ctx.lineWidth = 1;
+        ctx.stroke();
     }
+    ctx.translate(-0.5, -0.5);
 }
 
 const xhr = function () {

@@ -9,7 +9,7 @@ onmessage = function (e) {
 function groupByMonths(data) {
     if (!Array.isArray(data)) return {};
 
-    const groupedData = data.reduce(function (result, item){
+    const groupedData = data.reduce(function (result, item) {
         const itemDate = item.t.split('-');
         const itemYear = itemDate[0];
         const itemMonth = itemDate[1];
@@ -32,8 +32,8 @@ function groupByMonths(data) {
         for (let month in yearData.months) {
             if (!yearData.months.hasOwnProperty(month)) continue;
             const monthData = yearData.months[month];
-            const midValue = Math.round(monthData.sumValue / monthData.count);
-            monthsArray.push( {v: midValue, n:month} );
+            const midValue = Math.round(monthData.sumValue / monthData.count * 100) / 100;
+            monthsArray.push({v: midValue, n: month});
             yearData.max = midValue > yearData.max || yearData.max === null ? midValue : yearData.max;
             yearData.min = midValue < yearData.min || yearData.min === null ? midValue : yearData.min;
         }
