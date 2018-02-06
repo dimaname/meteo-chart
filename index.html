@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html lang="ru">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
-		<meta name="theme-color" content="#000000">
-		<title>Меткографик</title>
-		<link href="./main.css" rel="stylesheet">
-		<script type="text/javascript" src="./worker.js"></script>
-		<script type="text/javascript" src="./main.js"></script>
-	</head>
-	<body><noscript>You need to enable JavaScript to run this app.</noscript>
-		<div id="root" class="workarea">
-			<div class="sidebar">
-				<button id="temeratureBtn" class="sidebar_button">Температура</button>
-				<button id="precipitationBtn" class="sidebar_button">Осадки</button>
-			</div>	
-			<div class="center">
-				<div class="filters"></div>
-				<div class="chart"><canvas id="chart" width="700" height="500"></canvas></div>
-			</div>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+    <meta name="theme-color" content="#000000">
+    <title>Меткографик</title>
+    <link href="./main.css" rel="stylesheet">
+    <script type="text/javascript" src="./worker.js"></script>
+    <script type="text/javascript" src="./main.js"></script>
+</head>
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div id="root" class="workarea">
+    <div class="sidebar">
+        <button id="temeratureBtn" class="sidebar_button">Температура</button>
+        <button id="precipitationBtn" class="sidebar_button">Осадки</button>
+    </div>
+    <div class="center">
+        <div class="filters">
+            <select id="periodFrom" class="filter_select">
+            </select>
+            <select id="periodTo" class="filter_select">
+            </select>
+        </div>
+        <div class="chart">
+            <canvas id="chart" width="700" height="500"></canvas>
+        </div>
+    </div>
 
-		</div>
-
-	</body>
+</div>
+</body>
 </html>
