@@ -9,7 +9,8 @@ const state = {
     periodToElement: null,
     temeratureData: null,
     precipitationData: null,
-    drawWorker: null,
+    worker : new Worker("worker.js"),
+    drawWorker : new Worker("drawWorker.js"),
 };
 
 function ready() {
@@ -91,7 +92,7 @@ function getDataOnSuccess(activeTab, dataFromIndexDB) {
 }
 
 function getDataForChart(activeTab) {
-    const worker = new Worker("worker.js");
+    const worker = state.worker;
     worker.onmessage = function (e) {
         getDataOnSuccess(activeTab, e.data);
     };
@@ -117,14 +118,15 @@ function redrawCanvas() {
 }
 
 function drawSvgPaths(path) {
-    const canvas = state.canvasElement;
-    const ctx = canvas.getContext("2d");
+
     const DOMURL = window.URL || window.webkitURL || window;
     const img = new Image();
     const svg = new Blob([path], {type: 'image/svg+xml'});
     const url = DOMURL.createObjectURL(svg);
 
     img.onload = function() {
+        const canvas = state.canvasElement;
+        const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
         DOMURL.revokeObjectURL(url);
@@ -135,14 +137,9 @@ function drawSvgPaths(path) {
 
 function calculateChartPath(data, callback) {
     const canvas = state.canvasElement;
+    const drawWorker = state.drawWorker;
 
-    if(state.drawWorker){
-        state.drawWorker.terminate();
-    }
-    const drawWorker = new Worker("drawWorker.js")
-    state.drawWorker = drawWorker;
     drawWorker.onmessage = function (e) {
-        state.drawWorker = null;
         callback(e.data);
     };
 
