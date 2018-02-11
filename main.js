@@ -9,6 +9,7 @@ const state = {
     periodToElement: null,
     temeratureData: null,
     precipitationData: null,
+    drawWorker: null,
 };
 
 function ready() {
@@ -76,9 +77,7 @@ function getTabData(activeTab) {
         activeTab === TABS.PRECIPITATION && state.precipitationData)
         return;
 
-    getDataForChart(activeTab, function (data) {
-        getDataOnSuccess(activeTab, data);
-    });
+    getDataForChart(activeTab);
 }
 
 function getDataOnSuccess(activeTab, dataFromIndexDB) {
@@ -91,26 +90,13 @@ function getDataOnSuccess(activeTab, dataFromIndexDB) {
     redrawCanvas();
 }
 
-function getDataForChart(activeTab, callback) {
-    const myWorker = new Worker("worker.js");
-    myWorker.onmessage = function (e) {
-        callback(e.data);
+function getDataForChart(activeTab) {
+    const worker = new Worker("worker.js");
+    worker.onmessage = function (e) {
+        getDataOnSuccess(activeTab, e.data);
     };
 
-    myWorker.postMessage(activeTab);
-}
-
-function getMinAndMaxFromPeriod(currentData, periodFrom, periodTo) {
-    let min = null, max = null;
-    for (let year = periodFrom; year <= periodTo; year++) {
-        if (currentData[year]) {
-            const yearMax = currentData[year].max;
-            const yearMin = currentData[year].min;
-            min = min > yearMin || min === null ? yearMin : min;
-            max = max < yearMax || max === null ? yearMax : max;
-        }
-    }
-    return {minValue: min, maxValue: max};
+    worker.postMessage(activeTab);
 }
 
 function getCurrentTabData() {
@@ -124,85 +110,49 @@ function getCurrentTabData() {
 function redrawCanvas() {
     const currentData = getCurrentTabData();
     if (!currentData) return;
+
+    calculateChartPath(currentData, function(chartSvgData){
+        drawSvgPaths(chartSvgData);
+    });
+}
+
+function drawSvgPaths(path) {
     const canvas = state.canvasElement;
     const ctx = canvas.getContext("2d");
-    ctx.lineWidth = .5;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const x0 = y0 = 30;
-    const width = canvas.width - 80;
-    const height = canvas.height - 90;
-    const periodFrom = parseInt(state.periodFromElement.value);
-    const periodTo = parseInt(state.periodToElement.value);
-    const axesPeriodTo = periodTo + 1;
-    const periodLength = axesPeriodTo - periodFrom;
+    const DOMURL = window.URL || window.webkitURL || window;
+    const img = new Image();
+    const svg = new Blob([path], {type: 'image/svg+xml'});
+    const url = DOMURL.createObjectURL(svg);
 
-    const minAndMaxValue = getMinAndMaxFromPeriod(currentData, periodFrom, periodTo);
-    const minValue = minAndMaxValue.minValue;
-    const maxValue = minAndMaxValue.maxValue;
-    const minValueY = height + y0 - 20;
-    const maxValueY = y0 + 20;
-    const valueGraphLength = minValueY - maxValueY;
-    const valueLogicLength = maxValue - minValue;
-    const valueMapK = valueGraphLength / valueLogicLength;
+    img.onload = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        DOMURL.revokeObjectURL(url);
+    };
 
-    // считаем шаг по горизонтале
-    const initialStepX = Math.round(width / periodLength);
-    let stepXiterator = 1;
-    let stepX = initialStepX * stepXiterator;
-    while (stepX < 35) {
-        stepXiterator++;
-        stepX = initialStepX * stepXiterator;
+    img.src = url;
+}
+
+function calculateChartPath(data, callback) {
+    const canvas = state.canvasElement;
+
+    if(state.drawWorker){
+        state.drawWorker.terminate();
     }
+    const drawWorker = new Worker("drawWorker.js")
+    state.drawWorker = drawWorker;
+    drawWorker.onmessage = function (e) {
+        state.drawWorker = null;
+        callback(e.data);
+    };
 
-    ctx.beginPath();
-    ctx.translate(0, 0);
-    //вертикальная ось
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x0, height + y0);
-    //горизонтальная ось
-    ctx.lineTo(periodLength * initialStepX + x0 + 1, height + y0);
-
-    //разметка по годам
-    for (let i = x0, period = periodFrom; period <= axesPeriodTo; i += stepX, period += stepXiterator) {
-        ctx.moveTo(i, height + y0);
-        ctx.lineTo(i, height + y0 + 15);
-        ctx.fillText(period, i + 3, height + y0 + 15);
-    }
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.closePath();
-    ctx.stroke();
-
-
-    // отрисовка графика
-    const monthStep = (initialStepX / 12);
-    ctx.translate(0.5, 0.5);
-    ctx.beginPath();
-
-    for (let year = periodFrom, yearIndex = 0; year < axesPeriodTo; year++, yearIndex++) {
-        if (!currentData[year]) return;
-        const months = currentData[year].months;
-        months.forEach(function (month, i) {
-            const value = month.v;
-            const x = x0 + ( initialStepX * yearIndex + i * monthStep );
-            const y = maxValueY + (maxValue - value) * valueMapK;
-
-            if (!yearIndex && !i)
-                ctx.moveTo(x, y);
-            else
-                ctx.lineTo(x, y);
-            //  ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
-            if (value === minValue || value === maxValue)
-                ctx.fillText(value, x0 - 30, y);
-
-        });
-
-
-        ctx.strokeStyle = "#ff6129";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-    }
-    ctx.translate(-0.5, -0.5);
+    drawWorker.postMessage({
+        data: data,
+        width: canvas.width,
+        height: canvas.height,
+        periodFrom: state.periodFromElement.value,
+        periodTo: state.periodToElement.value
+    });
 }
 
 document.addEventListener("DOMContentLoaded", ready);
