@@ -18,7 +18,7 @@ function getDataFromServer(activeTab) {
 function dataLoadedHandler(activeTab, data) {
     const preparedData = prepareDataFromServer(data);
     putDataToIndexedDB(activeTab, preparedData);
-    postMessage(preparedData);
+    self.postMessage(preparedData);
 }
 
 function getDataFromIndexedDB(activeTab) {
@@ -37,7 +37,7 @@ function getDataFromIndexedDB(activeTab) {
                     getDataFromServer(activeTab);
                 } else {
                     const preparedData = prepareDataFromIndexedDB(data);
-                    postMessage(preparedData);
+                    self.postMessage(preparedData);
                 }
             }
         };
