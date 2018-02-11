@@ -1,4 +1,4 @@
-const TABS = {TEMPERATURE: 0, PRECIPITATION: 1};
+let TABS = {TEMPERATURE: 0, PRECIPITATION: 1};
 
 const state = {
     activeTab: TABS.TEMPERATURE,
@@ -9,11 +9,10 @@ const state = {
     periodToElement: null,
     temeratureData: null,
     precipitationData: null,
-
 };
 
 function ready() {
-    state.temeratureButton = document.getElementById("temeratureBtn");
+    state.temeratureButton = document.getElementById("temperatureBtn");
     state.precipitationButton = document.getElementById("precipitationBtn");
     state.periodFromElement = document.getElementById("periodFrom");
     state.periodToElement = document.getElementById("periodTo");
@@ -29,13 +28,13 @@ function ready() {
 function setActiveTab(activeTab) {
     state.activeTab = activeTab;
 
-    state.temeratureButton.classList.remove("active");
-    state.precipitationButton.classList.remove("active");
-
     if (activeTab === TABS.TEMPERATURE) {
         state.temeratureButton.classList.add("active");
+        state.precipitationButton.classList.remove("active");
+
     } else {
         state.precipitationButton.classList.add("active");
+        state.temeratureButton.classList.remove("active");
     }
     getTabData(activeTab);
     redrawCanvas();
@@ -55,9 +54,7 @@ function setPeriodFilters() {
     }
     state.periodFromElement.options[0].selected = true;
     state.periodToElement.options[state.periodToElement.options.length - 1].selected = true;
-
 }
-
 
 function periodChangeHandler() {
     const periodFrom = parseInt(state.periodFromElement.value);
@@ -65,54 +62,42 @@ function periodChangeHandler() {
 
     for (let i = 0; i < state.periodFromElement.options.length; i++) {
         const option = state.periodFromElement.options[i];
-        if (parseInt(option.value) > periodTo) {
-            option.disabled = true;
-        } else {
-            option.disabled = false;
-        }
+        option.disabled = parseInt(option.value) > periodTo;
     }
     for (let i = 0; i < state.periodToElement.options.length; i++) {
         const option = state.periodToElement.options[i];
-        if (parseInt(option.value) < periodFrom) {
-            option.disabled = true;
-        } else {
-            option.disabled = false;
-        }
+        option.disabled = parseInt(option.value) < periodFrom;
     }
     redrawCanvas();
 }
 
 function getTabData(activeTab) {
+    if (activeTab === TABS.TEMPERATURE && state.temeratureData ||
+        activeTab === TABS.PRECIPITATION && state.precipitationData)
+        return;
 
-    if (activeTab === TABS.TEMPERATURE && !state.temeratureData) {
-        xhr('get', 'temperature.json', function (data) {
-            prepareData(data, function(preparedData) {
-                state.temeratureData = preparedData;
-                redrawCanvas();
-            });
-        });
-
-    }
-    if (activeTab === TABS.PRECIPITATION && !state.precipitationData) {
-        xhr('get', 'precipitation.json', function (data) {
-            prepareData(data, function(preparedData) {
-                state.precipitationData = preparedData;
-                redrawCanvas();
-            });
-        });
-    }
-
+    getDataForChart(activeTab, function (data) {
+        getDataOnSuccess(activeTab, data);
+    });
 }
 
-function prepareData(rowData, callback) {
+function getDataOnSuccess(activeTab, dataFromIndexDB) {
+    if (activeTab === TABS.TEMPERATURE) {
+        state.temeratureData = dataFromIndexDB;
 
+    } else if (activeTab === TABS.PRECIPITATION) {
+        state.precipitationData = dataFromIndexDB;
+    }
+    redrawCanvas();
+}
+
+function getDataForChart(activeTab, callback) {
     const myWorker = new Worker("worker.js");
-    myWorker.onmessage = function(e) {
+    myWorker.onmessage = function (e) {
         callback(e.data);
     };
 
-    myWorker.postMessage(rowData);
-
+    myWorker.postMessage(activeTab);
 }
 
 function getMinAndMaxFromPeriod(currentData, periodFrom, periodTo) {
@@ -121,8 +106,8 @@ function getMinAndMaxFromPeriod(currentData, periodFrom, periodTo) {
         if (currentData[year]) {
             const yearMax = currentData[year].max;
             const yearMin = currentData[year].min;
-            min = min > yearMin || min == null ? yearMin : min;
-            max = max < yearMax || max == null ? yearMax : max;
+            min = min > yearMin || min === null ? yearMin : min;
+            max = max < yearMax || max === null ? yearMax : max;
         }
     }
     return {minValue: min, maxValue: max};
@@ -149,7 +134,7 @@ function redrawCanvas() {
     const periodFrom = parseInt(state.periodFromElement.value);
     const periodTo = parseInt(state.periodToElement.value);
     const axesPeriodTo = periodTo + 1;
-    const periodLength = axesPeriodTo  - periodFrom;
+    const periodLength = axesPeriodTo - periodFrom;
 
     const minAndMaxValue = getMinAndMaxFromPeriod(currentData, periodFrom, periodTo);
     const minValue = minAndMaxValue.minValue;
@@ -169,7 +154,8 @@ function redrawCanvas() {
         stepX = initialStepX * stepXiterator;
     }
 
-    ctx.beginPath();  ctx.translate(0, 0);
+    ctx.beginPath();
+    ctx.translate(0, 0);
     //вертикальная ось
     ctx.moveTo(x0, y0);
     ctx.lineTo(x0, height + y0);
@@ -189,13 +175,14 @@ function redrawCanvas() {
 
 
     // отрисовка графика
-    const monthStep = (initialStepX / 12); ctx.translate(0.5, 0.5);
+    const monthStep = (initialStepX / 12);
+    ctx.translate(0.5, 0.5);
     ctx.beginPath();
 
     for (let year = periodFrom, yearIndex = 0; year < axesPeriodTo; year++, yearIndex++) {
         if (!currentData[year]) return;
         const months = currentData[year].months;
-        months.forEach(function(month, i){
+        months.forEach(function (month, i) {
             const value = month.v;
             const x = x0 + ( initialStepX * yearIndex + i * monthStep );
             const y = maxValueY + (maxValue - value) * valueMapK;
@@ -204,7 +191,7 @@ function redrawCanvas() {
                 ctx.moveTo(x, y);
             else
                 ctx.lineTo(x, y);
-          //  ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
+            //  ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
             if (value === minValue || value === maxValue)
                 ctx.fillText(value, x0 - 30, y);
 
@@ -212,23 +199,10 @@ function redrawCanvas() {
 
 
         ctx.strokeStyle = "#ff6129";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
     }
     ctx.translate(-0.5, -0.5);
 }
-
-const xhr = function () {
-    const xhr = new XMLHttpRequest();
-    return function (method, url, callback) {
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                callback(xhr.responseText);
-            }
-        };
-        xhr.open(method, url);
-        xhr.send();
-    };
-}();
 
 document.addEventListener("DOMContentLoaded", ready);
